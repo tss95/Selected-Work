@@ -237,21 +237,8 @@ def determineOptimalSplit(data, potentialSplits, impurity_measure='entropy'):
 # Creates a decision tree based on the training data. Supports both gini and
 # entropy.
 
-def Learn(X, y, impurity_measure='entropy', prune=False, prunePortion=0.8):
-    if prune == True:
-        X_train, X_prune, y_train, y_prune = train_test_split(X, y,
-                                                              test_size=prunePortion)
-        tree = createTree(X_train, y_train, impurity_measure)
-        prunedTree = pruneTree(X_prune, y_prune, tree)
-        return prunedTree
-
-    else:
-        tree = createTree(X, y, impurity_measure)
-    return tree
-
-
-def createTree(X, y, impurity_measure = 'entropy'):
-    data = np.column_stack((X,y))
+def Learn(X, y, impurity_measure='entropy'):
+    data = np.column_stack((X, y))
 
     if isPure(y):
         classification = classify(y)
@@ -262,67 +249,35 @@ def createTree(X, y, impurity_measure = 'entropy'):
 
         potentialSplits = getPotentialSplits(data)
         if impurity_measure == 'entropy':
-            splitColumn, splitValue = determineOptimalSplit(data, potentialSplits, 'entropy')
+            splitColumn, splitValue = determineOptimalSplit(data,
+                                                            potentialSplits,
+                                                            'entropy')
         elif impurity_measure == 'gini':
-            splitColumn, splitValue = determineOptimalSplit(data, potentialSplits, 'gini')
+            splitColumn, splitValue = determineOptimalSplit(data,
+                                                            potentialSplits,
+                                                            'gini')
         dataBelow, dataAbove = splitData(data, splitColumn, splitValue)
-
 
         featureName = columnHeaders[splitColumn]
         featureType = featureTypes[splitColumn]
         if featureType == 'categorical':
-            question = "{} == {}".format(featureName,splitValue)
+            question = "{} == {}".format(featureName, splitValue)
         else:
             question = "{} <= {}".format(featureName, splitValue)
         subTree = {question: []}
 
         if impurity_measure == 'entropy':
             yesAnswer = Learn(dataBelow[:, 0:8], dataBelow[:, 8], 'entropy')
-            noAnswer =  Learn(dataAbove[:, 0:8], dataAbove[:, 8], 'entropy')
+            noAnswer = Learn(dataAbove[:, 0:8], dataAbove[:, 8], 'entropy')
         elif impurity_measure == 'gini':
             yesAnswer = Learn(dataBelow[:, 0:8], dataBelow[:, 8], 'gini')
-            noAnswer =  Learn(dataAbove[:, 0:8], dataAbove[:, 8], 'gini')
+            noAnswer = Learn(dataAbove[:, 0:8], dataAbove[:, 8], 'gini')
 
         subTree[question].append(yesAnswer)
         subTree[question].append(noAnswer)
 
         return subTree
 
-# Attempt at pruning. Really only outputs the nodes of the data.
-def pruneTree(X_prune, y_prune, tree):
-    data = np.column_stack((X_prune, y_prune))
-    question = list(tree.keys())[0]
-    columnName, operator, value = question.split()
-    columnName = columnIdentifier(columnName)
-
-    leaves = []
-
-    if isinstance(tree[question][0],int) and isinstance(tree[question][1], int):
-        leftLeaf = tree[question][0]
-        rightLeaf = tree[question][1]
-        leaves.append(leftLeaf)
-        leaves.append(rightLeaf)
-        return leaves
-
-    else:
-        if isinstance(tree[question][0], int) and isinstance(tree[question][1], dict):
-            leftLeaf = tree[question][0]
-            leftTree, rightTree = splitData(data, columnName, value)
-            rightLeaf = pruneTree(rightTree[:, 0:8], rightTree[:, 8], tree[question][1])
-            leaves.append(leftLeaf)
-            leaves.append(rightLeaf)
-            return leaves
-
-        if isinstance(tree[question][0], dict) and isinstance(tree[question][1], int):
-            rightLeaf = tree[question][1]
-            leftTree, rightTree = splitData(data, columnName, value)
-            leftLeaf = pruneTree(leftTree[:, 0:8], leftTree[:, 8], tree[question][0])
-            leaves.append(leftLeaf)
-            leaves.append(rightLeaf)
-            return leaves
-
-
-#print(pruneTree(X_train[0:11], y_train[0:11], {'Sex == M': [{"Diameter <= 0.2": [1, 3]}, 2]}))
 
 
 # Predicts a single input based on the tree.
